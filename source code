@@ -1,0 +1,86 @@
+import argparse
+import matplotlib.pyplot as plt
+import matplotlib.dates as md
+from datetime import datetime
+
+
+# load and read the log file
+parser = argparse.ArgumentParser()
+parser.add_argument('filename')
+args = parser.parse_args()
+INPUT_FILE = args.filename
+print(INPUT_FILE)
+
+
+# improve readability by extracting the specific data(time,date) from line in log file
+def log_extractor(line):
+    date = line[1:11]
+    time = line[12:24]
+    message = line[25:]
+    return date, time, message
+
+
+# constant & initial definitions
+SUCCESS, FAILURE = 1, 0
+COMMAND = "AT+QGPSLOC=1"  # request GPS every time system wakes up by command attention qgps location in log file
+SUCCESS_INDICATOR = "+QGPSLOC:"  # indication for success line in log file
+FAILURE_INDICATOR = "OK"  # when there is no indication for success i search for indication to failure in the consequent lines..
+num_of_commands = []  # saving the numbers of commands each time in a list
+times = []  # saving time points(for success or failure) in a list
+success_or_failure = []  # saving the results of success or failure for each time in a list
+dates = []  # saving the dates for each time of success or failure in a list
+
+
+# avoiding duplicated code lines for every if case..
+def handle_log_line(date, time, commands_counter, result):
+    times.append(time)
+    success_or_failure.append(result)
+    num_of_commands.append(commands_counter)
+    dates.append(date)
+
+
+# program
+with open(INPUT_FILE) as file:
+    commands_counter = 0  # counting the numbers of request GPS..
+    log_date, log_time, log_msg = None, None, None  # for case the log file end in a request line.
+    for line in file:
+        log_date, log_time, log_msg = log_extractor(line)
+        if COMMAND in log_msg:
+            commands_counter += 1
+        elif SUCCESS_INDICATOR in log_msg:
+            handle_log_line(log_date, log_time, commands_counter,
+                            SUCCESS)  # adding data to lists-specific time,number of commands ,result and date
+            commands_counter = 0  # restart counting
+        elif (commands_counter != 0) and FAILURE_INDICATOR in log_msg:  # in log file there is no success line..
+            handle_log_line(log_date, log_time, commands_counter, FAILURE)
+            commands_counter = 0  # restart counting
+    if commands_counter != 0:  # edge case when log file end up with line request for GPS..
+        print("Finished file with commands counter > 0 -> handling it as an error")
+        handle_log_line(log_date, log_time, commands_counter, FAILURE)
+
+
+# erase duplicated dates
+dates = list(set(dates))
+first_date = dates[0]
+last_date = dates[-1]
+date_title = f"{first_date}-{last_date}" if first_date != last_date else first_date
+
+
+#plotting
+# xLabel: datatime objects. yLabels: number of the command requests + success[1] or failure[0].
+time_axis = [datetime.strptime(t, '%H:%M:%S.%f') for t in times]  # turn values from string into datatime objects.
+plt.title(f'Attention GPS Location In Dates {date_title}')
+plt.xlabel('Time')
+plt.ylabel('Number Of Commands/Success Or Failure')
+plt.plot(time_axis, num_of_commands, "go-")
+plt.plot(time_axis, success_or_failure, "ro-")
+plt.legend(['Number Of Commands', 'Success Or Failure'])
+#md- alias for matplotlib.dates
+#DateFormatter-class from the md module used to format dates and times.
+xfmt = md.DateFormatter('%H:%M:%S') # edit foramat time of hours:minutes:seconds in x axis
+#gca()=funct from matplotlib-get current access returns the current axes instance for the current figure.
+#.xaxis=attribute of the axes object represents the x-axis.
+#set_major_formatter-method of the x axis object that is used to set the major tick formatter for the x-axis
+plt.gca().xaxis.set_major_formatter(xfmt)
+
+plt.show()
