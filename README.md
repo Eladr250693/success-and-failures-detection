@@ -1,4 +1,4 @@
 # success-and-failures-detection
-extract the number of successful location requests from the log file and show it on a graph.
-This little mission was made as a test for a job in a start-up company.
-so I share the code file but leave the log file to be private because I don't know if I have permission to publish it.
+In this little project, I extracted the number of successful location requests from a log file of a StartUp called BeeHero and plot it on a graph scaled by time.
+This little mission was created as homework examines me for a job position in a the start-up company.
+so I share the code file but the log file stays private.
